@@ -4,10 +4,12 @@ import sys
 import time
 import grovepi
 import threading
+import twitter
+import keys 		#own file keys.py with keys to different APIs
 
 #functions
 
-def ledBlink(pin, sleep):
+def ledBlink(pin, sleep):	#led on... led off
 	grovepi.pinMode(pin,"OUTPUT")
 	grovepi.digitalWrite(pin,1)
 	time.sleep(sleep)
@@ -26,12 +28,17 @@ def resetAll():			#reset all output actors e.g. leds
 	grovepi.digitalWrite(5,0)
 	return
 
-def repeatTime():		#timed actions and repeats
+def repeatTime():		#timed actions and repeats, ATM prints repet every 5 secs
 	if not pushButton(button): 
 		threading.Timer(5.0, repeatTime).start()
 		print ("Repeat")
 	else:
 		return
+
+def connectTwitter():		#connect to twitter and print it
+	api = twitter.Api(consumer_key=keys.twitterCK(),consumer_secret=keys.twitterCS(), access_token_key=keys.twitterATK(), access_token_secret=keys.twitterATS())
+	print "Twitter connected!"
+	return api
 
 #pins, sensors and actors
 blue = 5
@@ -39,9 +46,10 @@ button = 2
 temphum = 4
 
 #variables
-repeat = 3.0
 temp = 0
 hum = 0
+api = connectTwitter()   #create a twitter connection
+
 
 #main program
 
@@ -62,8 +70,9 @@ while True:
 		if temp != t or hum != h:
 			temp = t
 			hum = h
-			print "Temperature = ", temp, "C\tHumadity = ", hum, "%"
-		
+			print "Temperature = {} C, Humadity = {} %".format(temp, hum)
+			api.PostUpdate("{} Status OK. Temp= {}  C, Hum=  {} % ".format(time.ctime(),temp, hum))		#tweet results
+
 #exceptions
 
 	except KeyboardInterrupt as error:
@@ -74,6 +83,8 @@ while True:
 	except (IOError,TypeError) as error:
 		print "Mystical Error", str(error)
 
+	except twitter.error.TwitterError as error:
+		pass
 
 sys.exit()
 
