@@ -36,7 +36,7 @@ def repeatTime():		#timed actions and repeats, ATM prints repet every 5 secs
 		return
 
 def connectTwitter():		#connect to twitter and print it
-	api = twitter.Api(consumer_key=keys.twitterCK(),consumer_secret=keys.twitterCS(), access_token_key=keys.twitterATK(), access_token_secret=keys.twitterATS())
+	api = twitter.Api(consumer_key=keys.twitterCK(),consumer_secret=keys.twitterCS(),access_token_key=keys.twitterATK(),access_token_secret=keys.twitterATS())
 	print "Twitter connected!"
 	return api
 
