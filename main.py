@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+#python version 2
 
 import sys
 import time
@@ -24,11 +25,11 @@ def pushButton(pin):		#if button pushed, return True
 	else:
 		return False
 
-def resetAll():			#reset all output actors e.g. leds 
-	grovepi.digitalWrite(5,0)
+def resetAll(led):		#reset all output actors e.g. leds 
+	grovepi.digitalWrite(led,0)
 	return
 
-def repeatTime():		#timed actions and repeats, ATM prints repet every 5 secs
+def repeatTime():		#timed actions and repeats, ATM prints repeat every 5 secs
 	if not pushButton(button): 
 		threading.Timer(5.0, repeatTime).start()
 		print ("Repeat")
@@ -40,44 +41,101 @@ def connectTwitter():		#connect to twitter and print it
 	print "Twitter connected!"
 	return api
 
+def measureDistance(ultrasonic):		#ultrasonic measurement
+	distance = grovepi.ultrasonicRead(ultrasonic)
+	return distance
+
+def setupLeds(blue, red):
+	grovepi.pinMode(blue,"OUTPUT")
+	grovepi.pinMode(red,"OUTPUT")
+	resetAll(blue)
+	resetAll(red)
+	return "Led setup complete."
+
 #pins, sensors and actors
 blue = 5
+red = 6
+#green = x 
 button = 2
 temphum = 4
+ultrasonic = 8
 
 #variables
 temp = 0
 hum = 0
 api = connectTwitter()   #create a twitter connection
-
+dist= 0
+msg = "Status:"
+start = time.time() 	#used as timer
+door = True		#door closed = true, open = false
+doorLogic = True	#variable used with  door status changes
 
 #main program
 
-repeatTime()	#for testing timed repeted actions
+print setupLeds(blue,red)
+
+#repeatTime()	#for testing timed repeted actions
 
 
 while True:
 	try:
-		ledBlink(blue,2)		#testing that loop is working
+#		print "BLAA"
+#		ledBlink(red,2)		#testing that loop is working
 
 		if pushButton(button):		#break loop and end the program
+			resetAll(red)
 			print ("Button pushed, The End!")
 			break
 
-#measure temp and hum and print if changed
+#measure distance and print it, use red led
 
-		[t, h] = grovepi.dht(temphum,0)
-		if temp != t or hum != h:
+		dist = measureDistance(ultrasonic)
+		if dist == 65535:	#read again if return value is "non-readable"
+			dist = measureDistance(ultrasonic)
+
+#		print dist, "cm"
+		if dist < 100:
+			grovepi.digitalWrite(red,31)
+		else:
+			resetAll(red)
+
+#door open or closed, tweet if changed
+		if dist > 300:
+			door = False
+			msg = "Door open!"
+		else:
+			door = True
+			msg = "OK?"
+
+		if door != doorLogic:
+			[t, h] = grovepi.dht(temphum,0)
 			temp = t
 			hum = h
-			print "Temperature = {} C, Humadity = {} %".format(temp, hum)
-			api.PostUpdate("{} Status OK. Temp= {}  C, Hum=  {} % ".format(time.ctime(),temp, hum))		#tweet results
+#			print "Temperature = {} C, Humidity = {} %".format(temp, hum)
+			api.PostUpdate("{} {} Temp= {} C, Hum= {} %, Dist= {} cm ".format(time.ctime(),msg,temp,hum,dist))		#tweet results
+			doorLogic = door
+
+#measure temp and hum every app. 1 hour and tweet update or alert
+
+		end  = time.time()
+		if end - start >= 1800:
+#			print "Temperature = {} C, Humidity = {} %".format(temp, hum)
+			[t, h] = grovepi.dht(temphum,0)
+			if temp != t or hum != h:
+				msg = "ALERT!"
+				temp = t
+				hum = h
+			else:
+				msg = "Status:"
+			api.PostUpdate("{} {} Temp= {} C, Hum= {} %, Dist= {} cm ".format(time.ctime(),msg,temp,hum,dist))
+			start = time.time()
 
 #exceptions
 
 	except KeyboardInterrupt as error:
-		resetAll()
-		print "Keyborad Interrupt", str(error)
+		resetAll(blue)
+		resetAll(red)
+		print "Keyboard Interrupt", str(error)
 		break
 
 	except (IOError,TypeError) as error:
