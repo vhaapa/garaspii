@@ -7,6 +7,8 @@ import grovepi
 import threading
 import twitter
 import keys 		#own file keys.py with keys to different APIs
+from picamera import PiCamera
+
 
 #functions
 
@@ -51,6 +53,15 @@ def setupLeds(blue, red):
 	resetAll(blue)
 	resetAll(red)
 	return "Led setup complete."
+
+def takePhoto():
+	filepath = "/home/pi/pics/" + time.strftime("%Y%m%d-%H%M%S") + "jpg" 
+	cam = PiCamera()
+	cam.start_preview()
+	sleep(2)
+	cam.capture(file)
+	cam.stop_preview()
+	return filepath
 
 #pins, sensors and actors
 blue = 5
@@ -100,7 +111,7 @@ while True:
 			resetAll(red)
 
 #door open or closed, tweet if changed
-		if dist > 300:
+		if dist > 100:
 			door = False
 			msg = "Door open!"
 		else:
@@ -114,6 +125,9 @@ while True:
 #			print "Temperature = {} C, Humidity = {} %".format(temp, hum)
 			api.PostUpdate("{} {} Temp= {} C, Hum= {} %, Dist= {} cm ".format(time.ctime(),msg,temp,hum,dist))		#tweet results
 			doorLogic = door
+			if  door == False:
+				photo = takePhoto()
+				print "ZAP: " + photo
 
 #measure temp and hum every app. 1 hour and tweet update or alert
 
