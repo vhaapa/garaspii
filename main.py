@@ -55,12 +55,13 @@ def setupLeds(blue, red):
 	return "Led setup complete."
 
 def takePhoto():
-	filepath = "/home/pi/pics/" + time.strftime("%Y%m%d-%H%M%S") + "jpg" 
+	filepath = "/home/pi/pics/" + time.strftime("%Y%m%d-%H%M%S") + ".jpg" 
 	cam = PiCamera()
 	cam.start_preview()
-	sleep(2)
-	cam.capture(file)
+	time.sleep(2)
+	cam.capture(filepath)
 	cam.stop_preview()
+	cam.close()
 	return filepath
 
 #pins, sensors and actors
