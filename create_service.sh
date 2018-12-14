@@ -3,13 +3,13 @@
 #run .py as a service
 
 #create service file
-#cd /lib/systemd/system/
+cd /lib/systemd/system/
 echo "[Unit]" > garaspii.service
 echo "Description=eVill's Garbage" >> garaspii.service
 echo "After=multi-user.target" >> garaspii.service
 echo "[Service]" >> garaspii.service
 echo "Type=simple" >> garaspii.service
-echo "ExecStart=/usr/bin/python /home/pi/garaspii/main.py" >> garaspii.service
+echo "ExecStart=/usr/bin/python /home/pi/garaspii/garaspii.py" >> garaspii.service
 echo "Restart=on-abort" >> garaspii.service
 echo "[Install]" >> garaspii.service
 echo "WantedBy=multi-user.target" >> garaspii.service
@@ -18,13 +18,13 @@ echo "WantedBy=multi-user.target" >> garaspii.service
 sudo chmod 644 garaspii.service
 
 #rights to .py file
-#cd /home/pi/garaspii/
-#chmod +x main.py
+cd /home/pi/garaspii/
+chmod +x garaspii.py
 
 #start service and make it persistent
-#sudo systemctl daemon-reload
-#sudo systemctl enable garaspii.service
-#sudo systemctl start garaspii.service
+sudo systemctl daemon-reload
+sudo systemctl enable garaspii.service
+sudo systemctl start garaspii.service
 
 #stop service, disable service
 # sudo systemctl stop garaspii.service

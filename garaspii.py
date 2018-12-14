@@ -11,7 +11,7 @@ from picamera import PiCamera
 
 #functions
 
-def ledBlink(pin, sleep):	#led on... led off
+def blinkLed(pin, sleep):	#led on... led off
 	grovepi.pinMode(pin,"OUTPUT")
 	grovepi.digitalWrite(pin,1)
 	time.sleep(sleep)
@@ -29,13 +29,6 @@ def pushButton(pin):		#if button pushed, return True
 def resetActor(actor):		#reset all output actors e.g. leds 
 	grovepi.digitalWrite(actor,0)
 	return
-
-#def repeatTime():		#timed actions and repeats, ATM prints repeat every 5 secs
-#	if not pushButton(button): 
-#		threading.Timer(5.0, repeatTime).start()
-#		print ("Repeat")
-#	else:
-#		return
 
 def connectTwitter():		#connect to twitter and print it
 	api = twitter.Api(consumer_key=keys.twitterCK(),consumer_secret=keys.twitterCS(),access_token_key=keys.twitterATK(),access_token_secret=keys.twitterATS())
@@ -61,9 +54,15 @@ def takePhoto():
 	cam.close()
 	return filepath
 
+def checkTime(current, last, limit):
+	if current - last > limit:
+		return True
+	else:
+		return False
+
 # setting up...
 # pins, sensors and actors
-led = {"red":6, "blue":5, "green":3}
+led = {"red":6, "blue":5, "green":7}
 #blue = 5
 #red = 6
 #green = x 
@@ -72,105 +71,99 @@ temphum = 4
 ultrasonic = 8
 
 # variables
-temp = 0
-hum = 0
+temp, hum, dist = 0, 0, 0
+#hum = 0
 api = connectTwitter()   #create a twitter connection
-dist= 0
+#dist= 0
 #message = ["Status:", "Door open?", "ALERT!", "Ok?"] 
 msg = "Status:"
-start = time.time() 	#used as timer
+startStatus = time.time() 	#used as timer
+startTemphum = time.time()	#used as timer
 door = True		#door closed = true, open = false
 doorLogic = True	#variable used with  door status changes
 photoTaken = False	#used for photo logic
 photoTime = time.time() #last picture taken, used as timer
 
-#main program
+# main program
 
-#print setupLeds(led["blue"],led["red"])
-#setup leds
+# setup and reset leds
 for k in led:
+	blinkLed(led[k],1)
 	setupLed(led[k])
 	print k + " led setup done."
 
-#repeatTime()	#for testing timed repeted actions
-
-
 while True:
 	try:
-#		print "BLAA"
-#		ledBlink(red,2)		#testing that loop is working
 
-		if pushButton(button):		#break loop and end the program
+# button to break loop and end the program
+
+		if pushButton(button):
 			for k in led:
 				resetActor(led[k])
 			print ("Button pushed, The End!")
 			api.PostUpdate("Button pushed, The End. Bye!")
 			break
 
-#measure distance and print it, use red led
+# measure distance from door
 
 		dist = measureDistance(ultrasonic)
 		if dist == 65535:	#read again if return value is "non-readable"
 			dist = measureDistance(ultrasonic)
 
-#		print dist, "cm"
+# actions based on distance
+
 		if dist < 120:
-			door = False
+			door = True
+			resetActor(led["blue"])
+			resetActor(led["green"])
 			grovepi.digitalWrite(led["red"],31)
-			msg = "MOTION"
-			if photoTaken == False and time.time() - photoTime > 300:			
-				photo = takePhoto()
+			msg = "MOTION!"
+			if photoTaken == False and checkTime(time.time(),photoTime,300):
+#				photo = takePhoto()
 				photoTime = time.time()
-                               	print "ZAP: " + photo 
-			#	print "PHOTO"
+#                               print "ZAP: " + photo 
+				print "ZAP"
 				photoTaken = True
-				api.PostUpdate("Meedio", media=photo)
-		elif dist >= 120 and dist < 130:
+#				api.PostUpdate("Meedio", media=photo)
+		elif dist >= 120 and dist < 140:
 			door = True
 			msg = "OK?"
 			resetActor(led["red"])
+			resetActor(led["green"])
+			grovepi.digitalWrite(led["blue"],31)
 			photoTaken = False
 		else:
 			door =False
 			msg = "Door open!"
 			resetActor(led["red"])
+			resetActor(led["blue"])
+			grovepi.digitalWrite(led["green"],31)
 			photoTaken = False
 
-#door open or closed, tweet if changed
-#		if dist > 120:
-#			door = False
-#			msg = "Door open!"
-#		else:
-#			door = True
-#			msg = "OK?"
+# door open or closed, tweet if changed
 
 		if door != doorLogic:
-			[t, h] = grovepi.dht(temphum,0)
-			temp = t
-			hum = h
-#			print "Temperature = {} C, Humidity = {} %".format(temp, hum)
-			api.PostUpdate("{} {} Temp= {} C, Hum= {} %, Dist= {} cm ".format(time.ctime(),msg,temp,hum,dist))		#tweet results
+			api.PostUpdate("{} {} Dist= {} cm".format(time.ctime(),msg,dist)) #tweet results
 			doorLogic = door
-#			if  door == False:
-#				photo = takePhoto()
-#				print "ZAP: " + photo
 
-#measure temp and hum every app. 1 hour and tweet update or alert
+# measure temp and hum every app. 2 hours and tweet update or alert
 
-		end  = time.time()
-		if end - start >= 1800:
-#			print "Temperature = {} C, Humidity = {} %".format(temp, hum)
+		if time.time() - startTemphum >= 300:
 			[t, h] = grovepi.dht(temphum,0)
-			if temp != t or hum != h:
+			startTemphum = time.time()
+			if abs(temp - t) >= 3 or abs(hum - h) >= 5:
 				msg = "ALERT!"
+				api.PostUpdate("{} {} Temp= {} C, Hum= {} %, Dist= {} cm ".format(time.ctime(),msg,t,h,dist))
 				temp = t
 				hum = h
-			else:
+	 		elif time.time() - startStatus >= 3600: 
 				msg = "Status:"
-			api.PostUpdate("{} {} Temp= {} C, Hum= {} %, Dist= {} cm ".format(time.ctime(),msg,temp,hum,dist))
-			start = time.time()
+				api.PostUpdate("{} {} Temp= {} C, Hum= {} %, Dist= {} cm ".format(time.ctime(),msg,t,h,dist))
+				startStatus = time.time()
+			else:
+				pass
 
-#exceptions
+# exceptions
 
 	except KeyboardInterrupt as error:
 		for k in led:
