@@ -1,2 +1,2 @@
 # garaspii
-Measuring and surveilance system for a garage
+Measuring and surveillance system for a garage
